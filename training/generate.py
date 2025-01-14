@@ -5,6 +5,8 @@ from torch import nn
 
 from layers import GPTModel, Config
 
+torch.manual_seed(123)
+
 
 def get_next_tokens(model: nn.Module, idx: torch.Tensor, max_new_tokens: int, context_size: int):
     """
@@ -46,6 +48,7 @@ if __name__ == "__main__":
 
     # load the trained GPT-2 model
     cfg = Config()
+    cfg.context_len = 256
     model = GPTModel(cfg)
     model.eval()
 
