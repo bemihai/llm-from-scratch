@@ -5,7 +5,7 @@ from torch import nn
 from torchsummary import summary
 from dataclasses import dataclass
 
-from transformer_block import TransformerBlock
+from layers.transformer_block import TransformerBlock
 
 torch.manual_seed(123)
 
