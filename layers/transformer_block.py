@@ -69,8 +69,8 @@ class TransformerBlock(nn.Module):
     def __init__(self, embed_dim: int, context_len: int, n_heads: int, dropout: float = 0.1, qkv_bias: bool = False):
         super().__init__()
         # the multi-head attention module
-        self.attn = MultiHeadAttention(
-            embed_dim, embed_dim, context_len, n_heads, dropout, qkv_bias
+        self.att = MultiHeadAttention(
+            embed_dim, embed_dim, context_len, n_heads, dropout, qkv_bias=qkv_bias
         )
         # the feed forward module
         self.ff = FeedForward(embed_dim)
@@ -78,7 +78,7 @@ class TransformerBlock(nn.Module):
         self.norm1 = LayerNorm(embed_dim)
         self.norm2 = LayerNorm(embed_dim)
         # dropout layer
-        self.dropout = nn.Dropout(dropout)
+        self.drop_shortcut = nn.Dropout(dropout)
 
 
     def forward(self, x):
@@ -87,14 +87,14 @@ class TransformerBlock(nn.Module):
         # learning (avoiding vanishing gradients)
         skip = x
         x = self.norm1(x)  # apply layer normalization
-        x = self.attn(x)  # apply multi-head attention
-        x = self.dropout(x)  # apply dropout
+        x = self.att(x)  # apply multi-head attention
+        x = self.drop_shortcut(x)  # apply dropout
         x = x + skip  # add the skip connection
 
         skip = x
         x = self.norm2(x)  # apply layer normalization
         x = self.ff(x)  # apply feed forward
-        x = self.dropout(x)  # apply dropout
+        x = self.drop_shortcut(x)  # apply dropout
         x = x + skip  # add the skip connection
 
         return x

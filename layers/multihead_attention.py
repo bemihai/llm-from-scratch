@@ -33,30 +33,30 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         assert output_dim % num_heads == 0, "Output dimension must be divisible by the number of heads"
         self.num_heads = num_heads
-        self.output_dim = output_dim
-        self.input_dim = input_dim
+        self.d_out = output_dim
+        self.d_in = input_dim
         # reduces the projection dimension to match the number of heads
         self.head_dim = output_dim // num_heads
 
-        self.W_q = nn.Linear(input_dim, output_dim, bias=qkv_bias)
-        self.W_k = nn.Linear(input_dim, output_dim, bias=qkv_bias)
-        self.W_v = nn.Linear(input_dim, output_dim, bias=qkv_bias)
+        self.W_query = nn.Linear(input_dim, output_dim, bias=qkv_bias)
+        self.W_key = nn.Linear(input_dim, output_dim, bias=qkv_bias)
+        self.W_value = nn.Linear(input_dim, output_dim, bias=qkv_bias)
 
         # linear layer to combine the head outputs
-        self.output_proj = nn.Linear(output_dim, output_dim)
+        self.out_proj = nn.Linear(output_dim, output_dim)
         self.dropout = nn.Dropout(dropout)
         self.register_buffer("mask", torch.triu(torch.ones(context_len, context_len), diagonal=1))
 
     def forward(self, x):
         """The forward pass of the multi-head attention layer."""
         batch_size, seq_len, input_dim = x.shape
-        assert input_dim == self.input_dim, f"Input dimension is incorrect: {input_dim} != {self.input_dim}"
+        assert input_dim == self.d_in, f"Input dimension is incorrect: {input_dim} != {self.d_in}"
 
         # Project the input to the query, key, and value vectors
         # shape: (batch_size, seq_len, output_dim)
-        q = self.W_q(x)
-        k = self.W_k(x)
-        v = self.W_v(x)
+        q = self.W_query(x)
+        k = self.W_key(x)
+        v = self.W_value(x)
 
         # Split the query, key, and value vectors into multiple heads: add num_heads dim and split the output_dim
         # shape: (batch_size, seq_len, num_heads, head_dim)
@@ -87,8 +87,8 @@ class MultiHeadAttention(nn.Module):
 
         # Combine the heads and project the output
         # shape: (batch_size, seq_len, output_dim)
-        context_vecs = context_vecs.contiguous().view(batch_size, seq_len, self.output_dim)
-        return self.output_proj(context_vecs)
+        context_vecs = context_vecs.contiguous().view(batch_size, seq_len, self.d_out)
+        return self.out_proj(context_vecs)
 
 
 if __name__ == '__main__':

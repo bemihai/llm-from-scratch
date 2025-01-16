@@ -5,7 +5,7 @@ from torch import nn
 from torchsummary import summary
 from dataclasses import dataclass
 
-from layers.transformer_block import TransformerBlock
+from layers.transformer_block import TransformerBlock, LayerNorm
 
 torch.manual_seed(123)
 
@@ -30,35 +30,35 @@ class GPTModel(nn.Module):
     def __init__(self, cfg: Config):
         super().__init__()
         # input tokens embedding layer
-        self.token_embedding = nn.Embedding(cfg.vocab_size, cfg.embed_dim)
+        self.tok_emb = nn.Embedding(cfg.vocab_size, cfg.embed_dim)
         # input tokens positional embedding layer
-        self.position_embedding = nn.Embedding(cfg.vocab_size, cfg.embed_dim)
+        self.pos_emb = nn.Embedding(cfg.context_len, cfg.embed_dim)
         # dropout layer
         self.dropout = nn.Dropout(cfg.dropout)
         # transformer blocks
-        self.transformer_blocks = nn.Sequential(
+        self.trf_blocks = nn.Sequential(
             *[TransformerBlock(cfg.embed_dim, cfg.context_len, cfg.n_heads, cfg.dropout, cfg.qkv_bias)
             for _ in range(cfg.n_layers)]
         )
         # layer normalization
-        self.final_norm = nn.LayerNorm(cfg.embed_dim)
+        self.final_norm = LayerNorm(cfg.embed_dim)
         # output linear layer
-        self.output_head = nn.Linear(cfg.embed_dim, cfg.vocab_size, bias=False)
+        self.out_head = nn.Linear(cfg.embed_dim, cfg.vocab_size, bias=False)
 
     def forward(self, inputs):
         """The forward pass of the GPT-2 model."""
         # inputs shape: (batch_size, seq_len)
         batch_size, seq_len = inputs.shape
         # generate the inputs token/positional embeddings
-        token_embed = self.token_embedding(inputs.long())
-        pos_embed = self.position_embedding(torch.arange(seq_len, device=inputs.device))
+        token_embed = self.tok_emb(inputs.long())
+        pos_embed = self.pos_emb(torch.arange(seq_len, device=inputs.device))
         # sum up the embeddings and apply dropout
         x = self.dropout(token_embed + pos_embed)
         # apply the transformer blocks and layer normalization
-        x = self.transformer_blocks(x)
+        x = self.trf_blocks(x)
         x = self.final_norm(x)
         # project the output back to the vocabulary size
-        logits = self.output_head(x)
+        logits = self.out_head(x)
 
         return logits
 

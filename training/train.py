@@ -156,7 +156,7 @@ if __name__ == "__main__":
     initial_lr = 0.004
     min_lr = 0.0004
     total_steps = len(train_dl) * num_epochs
-    warmup_steps = int(0.01 * total_steps)  # 20% steps for learning rate warmup
+    warmup_steps = int(0.05 * total_steps)  # 20% steps for learning rate warmup
 
     # instantiate the optimizer
     # AdamW is a variant of Adam that improves the weight decay approach (better regularization)
@@ -183,6 +183,6 @@ if __name__ == "__main__":
     plot_losses(epochs_tensor, tokens_seen, train_losses, val_losses)
 
     # save the trained model to disk
-    torch.save(model.state_dict(), "/Users/bemihai/projects/llm-from-scratch/artifacts/gpt_small.pth")
+    torch.save(model.state_dict(), "gpt2/gpt_small.pth")
 
 
