@@ -1,9 +1,32 @@
 """Loss functions for training a GPT-2 model."""
 import tiktoken
 import torch
+from torch import nn
 from torch.nn.functional import cross_entropy
+from torch.utils.data import DataLoader
 
 from layers import GPTModel, Config
+
+
+def batch_ce_loss(inputs: torch.Tensor, targets:torch.Tensor, model: nn.Module, device: str = "cpu"):
+    """Computes the cross-entropy loss on a single batch."""
+    inputs = inputs.to(device)
+    targets = targets.to(device)
+    logits = model(inputs)
+    loss = cross_entropy(logits.flatten(0, 1), targets.flatten())
+
+    return loss
+
+
+def dl_ce_loss(dl: DataLoader, model: nn.Module, device: str = "cpu"):
+    """Computes the average cross-entropy loss on a data loader."""
+    total_loss = 0
+    for inputs, targets in dl:
+        loss = batch_ce_loss(inputs, targets, model, device)
+        total_loss += loss.item()
+
+    return total_loss / len(dl)
+
 
 if __name__ == "__main__":
 

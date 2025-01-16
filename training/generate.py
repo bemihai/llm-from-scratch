@@ -50,7 +50,7 @@ if __name__ == "__main__":
     cfg = Config()
     cfg.context_len = 256
     model = GPTModel(cfg)
-    model.eval()
+    model.to("cpu").eval()
 
     # generate the next tokens
     generated = get_next_tokens(model, encoded, max_new_tokens=10, context_size=cfg.context_len)
