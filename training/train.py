@@ -178,6 +178,11 @@ if __name__ == "__main__":
         device=device,
     )
 
+    # plot the training and validation losses
     epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
     plot_losses(epochs_tensor, tokens_seen, train_losses, val_losses)
+
+    # save the trained model to disk
+    torch.save(model.state_dict(), "gpt_small.pth")
+
 
