@@ -48,7 +48,10 @@ class GPTModel(nn.Module):
     def forward(self, inputs):
         """The forward pass of the GPT-2 model."""
         # inputs shape: (batch_size, seq_len)
-        batch_size, seq_len = inputs.shape
+        try:
+            batch_size, seq_len = inputs.shape
+        except ValueError:
+            breakpoint()
         # generate the inputs token/positional embeddings
         token_embed = self.tok_emb(inputs.long())
         pos_embed = self.pos_emb(torch.arange(seq_len, device=inputs.device))

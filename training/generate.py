@@ -58,7 +58,7 @@ def get_next_tokens(model: nn.Module, idx: torch.Tensor, max_new_tokens: int, co
 
 if __name__ == "__main__":
 
-    # load the trained GPT-2 model
+    # load the locally trained GPT-2 model
     # cfg = Config()
     # cfg.context_len = 256
     # model = GPTModel(cfg)
@@ -77,13 +77,13 @@ if __name__ == "__main__":
     load_weights_into_gpt(model, params)
 
     tokenizer = tiktoken.get_encoding("gpt2")
-    start_context = "The reason you have to go to school is"
+    start_context = "Having two cups of coffee a day can help you"
     encoded = tokenizer.encode(start_context)
     encoded = torch.tensor(encoded).unsqueeze(0)  # shape: (batch_size=1, sequence_length)
 
     # generate the next tokens
     generated = get_next_tokens(
-        model, encoded, max_new_tokens=25, context_size=cfg.context_len, temperature=1.5, top_k=50
+        model, encoded, max_new_tokens=25, context_size=cfg.context_len, temperature=2.5, top_k=50
     )
     generated = tokenizer.decode(generated.squeeze(0).tolist())
     print(f"Input: {start_context}")
