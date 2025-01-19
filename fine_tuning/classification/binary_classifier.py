@@ -6,10 +6,10 @@ import torch
 from torch import nn
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
+from torchsummary import summary
 
-from fine_tunning.metrics import dl_accuracy, dataset_loss, batch_loss
-from layers import Config
-from layers.classifier import GPTClassifier
+from fine_tunning.classification.metrics import dl_accuracy, dataset_loss, batch_loss
+from layers import Config, GPTClassifier
 from openai import load_weights_into_gpt, download_and_load_gpt2
 from sampler import SpamDataset
 
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     tokenizer = tiktoken.get_encoding("gpt2")
 
     # load the spam dataset
-    raw_df = pd.read_csv("../data/spam/spam_collection.tsv", sep="\t", header=None, names=["label", "text"])
+    raw_df = pd.read_csv("../../data/spam/spam_collection.tsv", sep="\t", header=None, names=["label", "text"])
     df = balanced_dataset(raw_df)
 
     # split the dataset into training, validation, and test sets
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     model = GPTClassifier(cfg, num_classes=2)
 
     # load the pre-trained GPT-2 weights
-    settings, params = download_and_load_gpt2(model_size="124M", models_dir="../training/gpt2")
+    settings, params = download_and_load_gpt2(model_size="124M", models_dir="../../training/gpt2")
     load_weights_into_gpt(model, params)
     model.to(device)
 
@@ -121,9 +121,23 @@ if __name__ == "__main__":
     train_accuracy = dl_accuracy(train_dl, model, device, num_batches=10)
     print(f"Initial training accuracy: {train_accuracy * 100:.2f}%")
 
+    # freeze all the layers except the last transformer block, the final layer norm, and
+    # the original output head (these are fine-tuned for classification)
+    for param in model.parameters():
+        param.requires_grad = False
+    for param in model.trf_blocks[-1].parameters():
+        param.requires_grad = True
+    for param in model.final_norm.parameters():
+        param.requires_grad = True
+    for param in model.out_head.parameters():
+        param.requires_grad = True
+
     # train the model on the spam dataset
     num_epochs = 5
     optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5, weight_decay=0.1)
+
+    # print model summary
+    summary(model, input_size=[[120]])
 
     print(f"Training the classification model for {num_epochs} epochs...")
     train_losses, val_losses, train_acc, val_acc, data_count = train_model(
@@ -139,7 +153,7 @@ if __name__ == "__main__":
     print(f"Test accuracy: {test_accuracy * 100:.2f}%")
 
     # save the trained model to disk
-    torch.save(model.state_dict(), "../training/gpt2/gpt_spam_classifier.pth")
+    torch.save(model.state_dict(), "../../training/gpt2/gpt_spam_classifier.pth")
 
 
 

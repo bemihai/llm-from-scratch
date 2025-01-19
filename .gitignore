@@ -163,3 +163,4 @@ cython_debug/
 /data/
 /gpt2/
 /training/gpt2/
+/.chainlit/

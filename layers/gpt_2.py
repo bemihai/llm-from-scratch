@@ -29,6 +29,7 @@ class GPTModel(nn.Module):
 
     def __init__(self, cfg: Config):
         super().__init__()
+        self.config = cfg
         # input tokens embedding layer
         self.tok_emb = nn.Embedding(cfg.vocab_size, cfg.embed_dim)
         # input tokens positional embedding layer
@@ -64,6 +65,21 @@ class GPTModel(nn.Module):
         logits = self.out_head(x)
 
         return logits
+
+
+class GPTClassifier(GPTModel):
+    """GPT-2 classifier model."""
+
+    def __init__(self, config, num_classes: int):
+        super().__init__(config)
+        # add a classification head
+        self.classifier = nn.Linear(config.vocab_size, num_classes)
+
+    def forward(self, x):
+        """Forward pass."""
+        x = super().forward(x)
+        x = self.classifier(x)
+        return x
 
 
 if __name__ == "__main__":
