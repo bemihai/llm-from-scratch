@@ -40,7 +40,7 @@ if __name__ == "__main__":
     cfg.qkv_bias = True
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = GPTClassifier(cfg, num_classes=2)
-    model.load_state_dict(torch.load("../../training/gpt2/gpt_spam_classifier.pth", map_location=device))
+    model.load_state_dict(torch.load("../../pretrained_models/gpt_spam_classifier.pth", map_location=device))
     model.eval()
 
     text_1 = (

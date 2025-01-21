@@ -26,7 +26,7 @@ def train_model(model: nn.Module, train_dl: DataLoader, val_dl: DataLoader, opti
     # lr increment per step during warmup
     total_steps = len(train_dl) * num_epochs
     peak_lr = optimizer.param_groups[0]["lr"]
-    lr_increment = (peak_lr - initial_lr) / warmup_steps
+    lr_increment = (peak_lr - initial_lr) / warmup_steps if warmup_steps > 0 else 0
 
     for epoch in range(num_epochs):
         # set model to training mode
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     gpt_cfg = Config()
     gpt_cfg.context_len = 256
 
-    with open("/Users/bemihai/projects/llm-from-scratch/data/the-verdict.txt", "r") as f:
+    with open("../data/the-verdict.txt", "r") as f:
         raw_text = f.read()
 
     # split the data into training and validation sets
@@ -183,6 +183,6 @@ if __name__ == "__main__":
     plot_losses(epochs_tensor, tokens_seen, train_losses, val_losses)
 
     # save the trained model to disk
-    torch.save(model.state_dict(), "gpt2/gpt_small.pth")
+    torch.save(model.state_dict(), "../pretrained_models/gpt_small.pth")
 
 

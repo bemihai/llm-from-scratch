@@ -18,10 +18,13 @@ def batch_ce_loss(inputs: torch.Tensor, targets:torch.Tensor, model: nn.Module, 
     return loss
 
 
-def dl_ce_loss(dl: DataLoader, model: nn.Module, device: str = "cpu"):
+def dl_ce_loss(dl: DataLoader, model: nn.Module, device: str = "cpu", num_batches: int | None = None):
     """Computes the average cross-entropy loss on a data loader."""
     total_loss = 0
-    for inputs, targets in dl:
+    num_batches = min(num_batches, len(dl)) if num_batches else len(dl)
+    for i, (inputs, targets) in enumerate(dl):
+        if i > num_batches:
+            break
         loss = batch_ce_loss(inputs, targets, model, device)
         total_loss += loss.item()
 

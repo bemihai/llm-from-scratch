@@ -153,7 +153,7 @@ if __name__ == "__main__":
     print(f"Test accuracy: {test_accuracy * 100:.2f}%")
 
     # save the trained model to disk
-    torch.save(model.state_dict(), "../../training/gpt2/gpt_spam_classifier.pth")
+    torch.save(model.state_dict(), "../../pretrained_models/gpt_spam_classifier.pth")
 
 
 
