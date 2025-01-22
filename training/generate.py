@@ -85,6 +85,6 @@ if __name__ == "__main__":
     generated = get_next_tokens(
         model, encoded, max_new_tokens=25, context_size=cfg.context_len, temperature=2.5, top_k=50
     )
-    generated = tokenizer.decode(generated.squeeze(0).tolist())
+    generated = tokenizer.decode(generated.squeeze(0).tolist()).replace("\n", " ")
     print(f"Input: {start_context}")
-    print(f"Generated: {generated.replace("\n", " ")}")
+    print(f"Generated: {generated}")

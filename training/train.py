@@ -67,7 +67,7 @@ def train_model(model: nn.Module, train_dl: DataLoader, val_dl: DataLoader, opti
                       f"Train Loss = {train_loss:.4f}, Val Loss = {val_loss:.4f}, LR = {lr:.4f}")
 
         # generate a sample from the model for visual inspection
-        context_size = model.position_embedding.weight.shape[0]
+        context_size = model.config.context_len
         generate_sample(model, tokenizer, start_context, context_size, device)
 
     return train_losses, val_losses, track_tokens_seen, track_lr
