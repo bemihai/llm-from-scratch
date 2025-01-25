@@ -8,8 +8,8 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from torchsummary import summary
 
-from fine_tunning.classification.metrics import dl_accuracy, dataset_loss, batch_loss
-from layers import Config, GPTClassifier
+from fine_tuning.classification.metrics import batch_loss, dataset_loss, dl_accuracy
+from layers import Config, GPTClassifier, replace_linear_with_lora
 from openai import load_weights_into_gpt, download_and_load_gpt2
 from sampler import SpamDataset
 
@@ -62,6 +62,37 @@ def train_model(model: nn.Module, train_dl: DataLoader, val_dl: DataLoader, opti
     return train_losses, val_losses, train_acc, val_acc, data_count
 
 
+def fine_tune_model(_model: nn.Module, lora: bool = False, rank: int | None = None, alpha: int | None = None):
+    """
+    Fine-tuning strategies for the GPT-2 binary classifier.
+
+    Args:
+        gpt2: The pre-trained GPT-2 model.
+        lora: Whether to use the LoRA fine-tuning strategy.
+        rank: The rank of the LoRA fine-tuning strategy.
+        alpha: The alpha parameter of the LoRA fine-tuning strategy.
+    """
+    # freeze all the layers of the model
+    for param in _model.parameters():
+        param.requires_grad = False
+
+    # fine tune the last layers of the model: the last transformer block, the final layer norm, and
+    # the original output head
+    if not lora:
+        for param in _model.trf_blocks[-1].parameters():
+            param.requires_grad = True
+        for param in _model.final_norm.parameters():
+            param.requires_grad = True
+        for param in _model.out_head.parameters():
+            param.requires_grad = True
+    # fine tune the model with LoRA
+    else:
+        assert rank and alpha, "Rank and alpha parameters are required for LoRA fine-tuning."
+        replace_linear_with_lora(_model, rank, alpha)
+
+    return _model
+
+
 if __name__ == "__main__":
 
     tokenizer = tiktoken.get_encoding("gpt2")
@@ -97,7 +128,7 @@ if __name__ == "__main__":
     model = GPTClassifier(cfg, num_classes=2)
 
     # load the pre-trained GPT-2 weights
-    settings, params = download_and_load_gpt2(model_size="124M", models_dir="../../training/gpt2")
+    settings, params = download_and_load_gpt2(model_size="124M", models_dir="../../pretrained_models")
     load_weights_into_gpt(model, params)
     model.to(device)
 
@@ -115,45 +146,37 @@ if __name__ == "__main__":
     print(f"Predicted label: {label.item()}")
 
     # compute the initial training set loss and accuracy before fine-tuning
-    with torch.no_grad():
-        train_loss = dataset_loss(train_dl, model, device, num_batches=10)
-    print(f"Initial training loss: {train_loss:.2f}")
-    train_accuracy = dl_accuracy(train_dl, model, device, num_batches=10)
-    print(f"Initial training accuracy: {train_accuracy * 100:.2f}%")
+    # with torch.no_grad():
+    #     train_loss = dataset_loss(train_dl, model, device, num_batches=10)
+    # print(f"Initial training loss: {train_loss:.2f}")
+    # train_accuracy = dl_accuracy(train_dl, model, device, num_batches=10)
+    # print(f"Initial training accuracy: {train_accuracy * 100:.2f}%")
 
-    # freeze all the layers except the last transformer block, the final layer norm, and
-    # the original output head (these are fine-tuned for classification)
-    for param in model.parameters():
-        param.requires_grad = False
-    for param in model.trf_blocks[-1].parameters():
-        param.requires_grad = True
-    for param in model.final_norm.parameters():
-        param.requires_grad = True
-    for param in model.out_head.parameters():
-        param.requires_grad = True
+    # fine-tune the model with LoRA layers
+    ft_model = fine_tune_model(model, lora=True, rank=16, alpha=16)
 
     # train the model on the spam dataset
     num_epochs = 5
-    optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5, weight_decay=0.1)
+    optimizer = torch.optim.AdamW(ft_model.parameters(), lr=5e-5, weight_decay=0.1)
 
     # print model summary
-    summary(model, input_size=[[120]])
+    summary(ft_model, input_size=[[120]])
 
     print(f"Training the classification model for {num_epochs} epochs...")
     train_losses, val_losses, train_acc, val_acc, data_count = train_model(
-        model, train_dl, val_dl, optimizer, num_epochs, eval_freq=50, eval_iter=5, device=device
+        ft_model, train_dl, val_dl, optimizer, num_epochs, eval_freq=50, eval_iter=5, device=device
     )
 
     # compute the training, validation, and test accuracies
-    train_accuracy = dl_accuracy(train_dl, model, device)
-    val_accuracy = dl_accuracy(val_dl, model, device)
-    test_accuracy = dl_accuracy(test_dl, model, device)
+    train_accuracy = dl_accuracy(train_dl, ft_model, device)
+    val_accuracy = dl_accuracy(val_dl, ft_model, device)
+    test_accuracy = dl_accuracy(test_dl, ft_model, device)
     print(f"Training accuracy: {train_accuracy * 100:.2f}%")
     print(f"Validation accuracy: {val_accuracy * 100:.2f}%")
     print(f"Test accuracy: {test_accuracy * 100:.2f}%")
 
     # save the trained model to disk
-    torch.save(model.state_dict(), "../../pretrained_models/gpt_spam_classifier.pth")
+    torch.save(ft_model.state_dict(), "../../pretrained_models/gpt_spam_classifier_lora.pth")
 
 
 
