@@ -5,6 +5,25 @@ import torch
 from torch.utils.data import Dataset
 
 
+def balanced_dataset(df: pd.DataFrame):
+    """
+    Creates a balanced spam dataset by undersampling the majority class.
+
+    Args:
+        df: The spam dataset having columns named "label" and "text",
+            with "label" being categorical and having two values: "spam" and "ham".
+
+    Returns the balanced dataset.
+    """
+    num_spam = df["label"].value_counts()["spam"]
+    spam_sampled = df.query("label == 'spam'")
+    ham_sampled = df.query("label == 'ham'").sample(n=num_spam, random_state=123)
+    bdf = pd.concat([spam_sampled, ham_sampled])
+    bdf["label"] = bdf["label"].map({"spam": 1, "ham": 0})
+
+    return bdf
+
+
 class SpamDataset(Dataset):
     """
     Pytorch dataset for the spam dataset.

@@ -3,7 +3,7 @@ import tiktoken
 import torch
 from torch import nn
 
-from layers import GPTClassifier, Config
+from layers import GPTClassifier, GPTConfig
 
 
 def classify_text(
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     tokenizer = tiktoken.get_encoding("gpt2")
 
     # load the fine-tuned GPT-2 binary classifier
-    cfg = Config()
+    cfg = GPTConfig()
     cfg.context_len = 1024
     cfg.qkv_bias = True
     device = "cuda" if torch.cuda.is_available() else "cpu"

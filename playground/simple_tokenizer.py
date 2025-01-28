@@ -15,7 +15,7 @@ def create_vocab(text: str) -> dict[str, int]:
     return {token: idx for idx, token in enumerate(sorted(set(words)))}
 
 
-class SimpleTokenizerV1:
+class SimpleTokenizer:
     """Simple tokenizer that encodes the text into integers based on the vocabulary."""
 
     def __init__(self, vocab: dict[str, int]):
@@ -40,11 +40,11 @@ class SimpleTokenizerV1:
 
 if __name__ == '__main__':
 
-    with open("/Users/bemihai/projects/llm-from-scratch/data/the-verdict.txt", "r") as f:
+    with open("/data/the-verdict.txt", "r") as f:
         inputs = f.read()
 
     vocab = create_vocab(inputs)
-    tokenizer = SimpleTokenizerV1(vocab)
+    tokenizer = SimpleTokenizer(vocab)
 
     text_1 = "What struck me now was that, for the first time, he resented the tone. Evrika!"
     text_2 = "The verdict was a shock to many, but not to all. The judge was known for his harsh sentences."

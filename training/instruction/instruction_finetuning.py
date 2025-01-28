@@ -7,14 +7,12 @@ import tiktoken
 import torch
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
-from torchsummary import summary
 
-from fine_tuning.classification.metrics import dataset_loss
-from layers import Config, GPTModel
-from openai import download_and_load_gpt2, load_weights_into_gpt
-from sampler.instruction_dataset import collate_fn, InstructionDataset, format_input
+from layers import GPTConfig, GPTModel
+from utils.api.openai import download_and_load_gpt2, load_weights_into_gpt
+from datasets.instruction_dataset import collate_fn, InstructionDataset, format_input
 from training import dl_ce_loss
-from training.train import train_model
+from training.foundation.train_gpt2 import train_model
 from utils import plot_losses
 
 torch.manual_seed(123)
@@ -61,7 +59,7 @@ if __name__ == "__main__":
 
     # load GPT-2 medium
     settings, params = download_and_load_gpt2(model_size="355M", models_dir="../../pretrained_models")
-    config = Config(
+    config = GPTConfig(
         vocab_size=50_257,
         context_len=1024,
         embed_dim=1024,

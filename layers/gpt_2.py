@@ -11,9 +11,9 @@ torch.manual_seed(123)
 
 
 @dataclass
-class Config:
+class GPTConfig:
     """
-    The configuration of the GPT-2 model. Default config is GPT-2 small (124M params).
+    The configuration of the GPT-2 model. Default config is GPT-2 small (124M params) without biases.
     """
     vocab_size: int = 50_257  # vocabulary size
     context_len: int = 1024  # context length - the max number of input tokens to process
@@ -27,7 +27,7 @@ class Config:
 class GPTModel(nn.Module):
     """The (modern) GPT-2 model architecture."""
 
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: GPTConfig):
         super().__init__()
         self.config = cfg
         # input tokens embedding layer
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     print(f"Input tokens: {inputs}")
 
     # create a GPT-2 model with default configuration
-    model = GPTModel(Config())
+    model = GPTModel(GPTConfig())
     logits = model(inputs)
     # output shape: (batch_size=2, sequence_length=4, vocab_size=50257)
     print(f"Output shape: {logits.shape}")

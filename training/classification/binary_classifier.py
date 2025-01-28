@@ -8,23 +8,13 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from torchsummary import summary
 
-from fine_tuning.classification.metrics import batch_loss, dataset_loss, dl_accuracy
-from layers import Config, GPTClassifier, replace_linear_with_lora
-from openai import load_weights_into_gpt, download_and_load_gpt2
-from sampler import SpamDataset
+from utils.metrics import batch_ce_loss_last, dataset_ce_loss_last, dataset_accuracy
+from layers import GPTConfig, GPTClassifier, replace_linear_with_lora
+from utils.api import load_weights_into_gpt, download_and_load_gpt2
+from datasets import SpamDataset
+from utils.data import balanced_dataset
 
 torch.manual_seed(123)
-
-
-def balanced_dataset(df: pd.DataFrame):
-    """Creates a balanced dataset by undersampling the majority class."""
-    num_spam = df["label"].value_counts()["spam"]
-    spam_sampled = df.query("label == 'spam'")
-    ham_sampled = df.query("label == 'ham'").sample(n=num_spam, random_state=123)
-    bdf = pd.concat([spam_sampled, ham_sampled])
-    bdf["label"] = bdf["label"].map({"spam": 1, "ham": 0})
-
-    return bdf
 
 
 def train_model(model: nn.Module, train_dl: DataLoader, val_dl: DataLoader, optimizer: Optimizer,
@@ -40,17 +30,17 @@ def train_model(model: nn.Module, train_dl: DataLoader, val_dl: DataLoader, opti
             optimizer.zero_grad()
             global_step += 1
 
-            loss = batch_loss(inputs, labels, model, device)
+            loss = batch_ce_loss_last(inputs, labels, model, device)
             loss.backward()
             optimizer.step()
             data_count += inputs.shape[0]
 
             if global_step % eval_freq == 0:
                 with torch.no_grad():
-                    train_loss = dataset_loss(train_dl, model, device, num_batches=eval_iter)
-                    val_loss = dataset_loss(val_dl, model, device, num_batches=eval_iter)
-                    train_acc = dl_accuracy(train_dl, model, device, num_batches=eval_iter)
-                    val_acc = dl_accuracy(val_dl, model, device, num_batches=eval_iter)
+                    train_loss = dataset_ce_loss_last(train_dl, model, device, num_batches=eval_iter)
+                    val_loss = dataset_ce_loss_last(val_dl, model, device, num_batches=eval_iter)
+                    train_acc = dataset_accuracy(train_dl, model, device, num_batches=eval_iter)
+                    val_acc = dataset_accuracy(val_dl, model, device, num_batches=eval_iter)
                     print(f"Epoch {epoch}, Step {global_step}, "
                           f"Train loss: {train_loss:.2f}, Val loss: {val_loss:.2f}, "
                           f"Train acc: {train_acc * 100:.2f}%, Val acc: {val_acc * 100:.2f}%")
@@ -62,12 +52,12 @@ def train_model(model: nn.Module, train_dl: DataLoader, val_dl: DataLoader, opti
     return train_losses, val_losses, train_acc, val_acc, data_count
 
 
-def fine_tune_model(_model: nn.Module, lora: bool = False, rank: int | None = None, alpha: int | None = None):
+def get_model_ready_for_ft(_model: nn.Module, lora: bool = False, rank: int | None = None, alpha: int | None = None):
     """
-    Fine-tuning strategies for the GPT-2 binary classifier.
+    Sets the fine-tuning strategy for the GPT-2 binary classifier - either the last layers or LoRA.
 
     Args:
-        gpt2: The pre-trained GPT-2 model.
+        _model: The pre-trained GPT-2 model.
         lora: Whether to use the LoRA fine-tuning strategy.
         rank: The rank of the LoRA fine-tuning strategy.
         alpha: The alpha parameter of the LoRA fine-tuning strategy.
@@ -121,7 +111,7 @@ if __name__ == "__main__":
     test_dl = DataLoader(test_ds, batch_size=8, drop_last=False)
 
     # instantiate the GPT-2 classifier model
-    cfg = Config()
+    cfg = GPTConfig()
     cfg.context_len = 1024
     cfg.qkv_bias = True
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -153,7 +143,7 @@ if __name__ == "__main__":
     # print(f"Initial training accuracy: {train_accuracy * 100:.2f}%")
 
     # fine-tune the model with LoRA layers
-    ft_model = fine_tune_model(model, lora=True, rank=16, alpha=16)
+    ft_model = get_model_ready_for_ft(model, lora=True, rank=16, alpha=16)
 
     # train the model on the spam dataset
     num_epochs = 5
@@ -168,9 +158,9 @@ if __name__ == "__main__":
     )
 
     # compute the training, validation, and test accuracies
-    train_accuracy = dl_accuracy(train_dl, ft_model, device)
-    val_accuracy = dl_accuracy(val_dl, ft_model, device)
-    test_accuracy = dl_accuracy(test_dl, ft_model, device)
+    train_accuracy = dataset_accuracy(train_dl, ft_model, device)
+    val_accuracy = dataset_accuracy(val_dl, ft_model, device)
+    test_accuracy = dataset_accuracy(test_dl, ft_model, device)
     print(f"Training accuracy: {train_accuracy * 100:.2f}%")
     print(f"Validation accuracy: {val_accuracy * 100:.2f}%")
     print(f"Test accuracy: {test_accuracy * 100:.2f}%")

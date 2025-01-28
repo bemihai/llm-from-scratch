@@ -8,10 +8,11 @@ from torch.nn.utils import clip_grad_norm_
 from torch.optim import Optimizer, AdamW
 from torch.utils.data import DataLoader
 
-from layers import Config, GPTModel
-from sampler import get_dataloader_v1
-from training import dl_ce_loss, batch_ce_loss, get_next_tokens
+from layers import GPTConfig, GPTModel
+from datasets import get_dataloader_v1
 from utils import plot_losses
+from utils.generate import get_next_tokens
+from utils.metrics import batch_ce_loss_all, dataset_ce_loss_all
 
 torch.manual_seed(123)
 
@@ -47,7 +48,7 @@ def train_model(model: nn.Module, train_dl: DataLoader, val_dl: DataLoader, opti
                 param_group["lr"] = lr
 
             # compute the loss of the current batch
-            loss = batch_ce_loss(inputs, targets, model, device)
+            loss = batch_ce_loss_all(inputs, targets, model, device)
             # compute the loss gradients
             loss.backward()
             # apply gradient clipping after warmup to avoid exploding gradients
@@ -77,8 +78,8 @@ def evaluate_model(model: nn.Module, train_dl: DataLoader, val_dl:DataLoader, de
     """Evaluate the model on the training and validation sets."""
     model.eval()
     with torch.no_grad():
-        train_loss = dl_ce_loss(train_dl, model, device)
-        val_loss = dl_ce_loss(val_dl, model, device)
+        train_loss = dataset_ce_loss_all(train_dl, model, device)
+        val_loss = dataset_ce_loss_all(val_dl, model, device)
 
     model.train()
     return train_loss, val_loss
@@ -102,10 +103,10 @@ def generate_sample(model: nn.Module, tokenizer: tiktoken.Encoding,
 if __name__ == "__main__":
 
     tokenizer = tiktoken.get_encoding("gpt2")
-    gpt_cfg = Config()
+    gpt_cfg = GPTConfig()
     gpt_cfg.context_len = 256
 
-    with open("../data/the-verdict.txt", "r") as f:
+    with open("../../data/the-verdict.txt", "r") as f:
         raw_text = f.read()
 
     # split the data into training and validation sets
@@ -145,8 +146,8 @@ if __name__ == "__main__":
 
     # compute the initial training and validation losses
     with torch.no_grad():
-        train_loss = dl_ce_loss(train_dl, model, device)
-        val_loss = dl_ce_loss(val_dl, model, device)
+        train_loss = dataset_ce_loss_all(train_dl, model, device)
+        val_loss = dataset_ce_loss_all(val_dl, model, device)
 
     print(f"Initial training loss: {train_loss:.4f}")
     print(f"Initial validation loss: {val_loss:.4f}")
@@ -183,6 +184,6 @@ if __name__ == "__main__":
     plot_losses(epochs_tensor, tokens_seen, train_losses, val_losses)
 
     # save the trained model to disk
-    torch.save(model.state_dict(), "../pretrained_models/gpt_small.pth")
+    torch.save(model.state_dict(), "../../pretrained_models/gpt_small.pth")
 
 

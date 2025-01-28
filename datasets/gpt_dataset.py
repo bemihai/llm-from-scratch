@@ -5,7 +5,7 @@ from torch.utils.data import Dataset, DataLoader
 import tiktoken
 
 
-class GPTDatasetV1(Dataset):
+class GPTDataset(Dataset):
     """PyTorch dataset for loading the text data and encoding it into integers."""
 
     def __init__(self, text: str, tokenizer: Any, max_length: int, stride: int):
@@ -33,7 +33,8 @@ def get_dataloader_v1(
         shuffle: bool = True, drop_last: bool = True, num_workers: int = 0, **kwargs
 ) -> DataLoader:
     """Returns a PyTorch DataLoader for the GPTDatasetV1 dataset."""
-    ds = GPTDatasetV1(text, tokenizer, max_length, stride)
+    # TODO: drop this function
+    ds = GPTDataset(text, tokenizer, max_length, stride)
     return DataLoader(
         dataset=ds,
         batch_size=batch_size,
