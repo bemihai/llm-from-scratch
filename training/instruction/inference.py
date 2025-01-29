@@ -6,10 +6,10 @@ import tiktoken
 import torch
 from tqdm import tqdm
 
-from layers import GPTConfig, GPTModel
-from datasets.instruction_dataset import format_input
-from training import get_next_tokens
-from utils.api import query_ollama
+from src.layers import GPTConfig, GPTModel
+from src.data.instruction_dataset import format_input
+from src.utils.api import query_ollama
+from src.utils.generate import get_next_tokens
 
 torch.manual_seed(123)
 

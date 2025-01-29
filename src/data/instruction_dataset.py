@@ -1,7 +1,7 @@
 """Instruction fine-tuning dataset."""
 import tiktoken
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 
 def format_input(text: dict[str, str]) -> tuple[str, str]:

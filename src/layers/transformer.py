@@ -2,7 +2,7 @@
 import torch
 from torch import nn
 
-from layers.attention import MultiHeadAttention
+from src.layers.attention import MultiHeadAttention
 
 
 class LayerNorm(nn.Module):

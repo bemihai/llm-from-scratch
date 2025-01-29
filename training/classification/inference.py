@@ -3,7 +3,7 @@ import tiktoken
 import torch
 from torch import nn
 
-from layers import GPTClassifier, GPTConfig
+from src.layers import GPTClassifier, GPTConfig
 
 
 def classify_text(

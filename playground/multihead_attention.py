@@ -5,7 +5,7 @@ from torch import nn
 
 from playground.self_attention import CausalAttention
 
-from layers.attention import MultiHeadAttention
+from src.layers.attention import MultiHeadAttention
 
 torch.manual_seed(123)
 

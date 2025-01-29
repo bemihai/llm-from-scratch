@@ -2,9 +2,9 @@
 import tiktoken
 import torch
 
-from layers import GPTModel, GPTConfig
-from utils.api.openai import download_and_load_gpt2, load_weights_into_gpt
-from utils.generate import get_next_tokens
+from src.layers import GPTModel, GPTConfig
+from src.utils.api.openai import download_and_load_gpt2, load_weights_into_gpt
+from src.utils.generate import get_next_tokens
 
 torch.manual_seed(123)
 

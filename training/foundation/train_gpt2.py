@@ -8,11 +8,11 @@ from torch.nn.utils import clip_grad_norm_
 from torch.optim import Optimizer, AdamW
 from torch.utils.data import DataLoader
 
-from layers import GPTConfig, GPTModel
-from datasets import get_dataloader_v1
-from utils import plot_losses
-from utils.generate import get_next_tokens
-from utils.metrics import batch_ce_loss_all, dataset_ce_loss_all
+from src.data import GPTDataset
+from src.layers import GPTConfig, GPTModel
+from src.utils import plot_losses
+from src.utils.generate import get_next_tokens
+from src.utils.metrics import batch_ce_loss_all, dataset_ce_loss_all
 
 torch.manual_seed(123)
 
@@ -116,24 +116,22 @@ if __name__ == "__main__":
     val_data = raw_text[train_size:]
 
     # training data loader
-    train_dl = get_dataloader_v1(
-        text=train_data,
-        tokenizer=tokenizer,
+    train_dl = DataLoader(
+        dataset=GPTDataset(
+            text=train_data, tokenizer=tokenizer, max_length=gpt_cfg.context_len, stride=gpt_cfg.context_len
+        ),
         batch_size=2,
-        max_length=gpt_cfg.context_len,
-        stride=gpt_cfg.context_len,
         shuffle=True,
         drop_last=True,
         num_workers=0,
     )
 
     # validation data loader
-    val_dl = get_dataloader_v1(
-        text=val_data,
-        tokenizer=tokenizer,
+    val_dl = DataLoader(
+        dataset=GPTDataset(
+            text=val_data, tokenizer=tokenizer, max_length=gpt_cfg.context_len, stride=gpt_cfg.context_len
+        ),
         batch_size=2,
-        max_length=gpt_cfg.context_len,
-        stride=gpt_cfg.context_len,
         shuffle=False,
         drop_last=False,
         num_workers=0,

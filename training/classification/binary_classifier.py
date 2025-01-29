@@ -8,11 +8,10 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from torchsummary import summary
 
-from utils.metrics import batch_ce_loss_last, dataset_ce_loss_last, dataset_accuracy
-from layers import GPTConfig, GPTClassifier, replace_linear_with_lora
-from utils.api import load_weights_into_gpt, download_and_load_gpt2
-from datasets import SpamDataset
-from utils.data import balanced_dataset
+from src.utils.metrics import batch_ce_loss_last, dataset_ce_loss_last, dataset_accuracy
+from src.layers import GPTConfig, GPTClassifier, replace_linear_with_lora
+from src.utils.api import load_weights_into_gpt, download_and_load_gpt2
+from src.data import SpamDataset, balanced_dataset
 
 torch.manual_seed(123)
 
@@ -101,7 +100,7 @@ if __name__ == "__main__":
     test_df = df[val_end_idx:]
     print(f"Train size: {len(train_df)}, Val size: {len(val_df)}, Test size: {len(test_df)}")
 
-    # create datasets and dataloaders
+    # create data and dataloaders
     train_ds = SpamDataset(train_df, tokenizer)
     val_ds = SpamDataset(val_df, tokenizer)
     test_ds = SpamDataset(test_df, tokenizer)

@@ -3,7 +3,7 @@ import tiktoken
 import torch
 from torch.nn.functional import cross_entropy
 
-from layers import GPTModel, GPTConfig
+from src.layers import GPTModel, GPTConfig
 
 
 if __name__ == "__main__":

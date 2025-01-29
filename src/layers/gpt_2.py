@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from dataclasses import dataclass
 
-from layers.transformer import TransformerBlock, LayerNorm
+from src.layers.transformer import TransformerBlock, LayerNorm
 
 
 @dataclass

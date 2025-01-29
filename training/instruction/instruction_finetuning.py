@@ -8,12 +8,12 @@ import torch
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 
-from layers import GPTConfig, GPTModel
-from utils.api.openai import download_and_load_gpt2, load_weights_into_gpt
-from datasets.instruction_dataset import collate_fn, InstructionDataset, format_input
-from training import dl_ce_loss
+from src.layers import GPTConfig, GPTModel
+from src.utils.api import download_and_load_gpt2, load_weights_into_gpt
+from src.data import collate_fn, InstructionDataset, format_input
+from src.utils.metrics import dataset_ce_loss_all
 from training.foundation.train_gpt2 import train_model
-from utils import plot_losses
+from src.utils import plot_losses
 
 torch.manual_seed(123)
 
@@ -76,8 +76,8 @@ if __name__ == "__main__":
 
     # compute the initial training and validation loss
     with torch.no_grad():
-        train_loss = dl_ce_loss(train_loader, model, device, num_batches=5)
-        val_loss = dl_ce_loss(val_loader, model, device, num_batches=5)
+        train_loss = dataset_ce_loss_all(train_loader, model, device, num_batches=5)
+        val_loss = dataset_ce_loss_all(val_loader, model, device, num_batches=5)
         print(f"Initial train loss: {train_loss:.2f}, Initial val loss: {val_loss:.2f}")
 
     # fine-tune the model

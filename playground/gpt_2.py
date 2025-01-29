@@ -3,7 +3,7 @@ import tiktoken
 import torch
 from torchsummary import summary
 
-from layers import GPTConfig, GPTModel
+from src.layers import GPTConfig, GPTModel
 
 torch.manual_seed(123)
 
