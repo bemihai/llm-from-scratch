@@ -1,9 +1,8 @@
 """LoRA layer implementation."""
 
 import math
-
 import torch
-import torch.nn as nn
+from torch import nn
 
 
 class LoRALayer(nn.Module):

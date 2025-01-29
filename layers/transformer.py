@@ -2,12 +2,12 @@
 import torch
 from torch import nn
 
-from layers.multihead_attention import MultiHeadAttention
+from layers.attention import MultiHeadAttention
 
 
 class LayerNorm(nn.Module):
     """
-    The layer normalization architecture.
+    The layer normalization architecture (see also torch.nn.LayerNorm).
 
     Layer normalization improves the stability and efficiency of the model training by speeding up the convergence
     to effective weights.
@@ -29,7 +29,8 @@ class LayerNorm(nn.Module):
 
 class GELU(nn.Module):
     """
-    Gaussian Error Linear Unit activation function.
+    Gaussian Error Linear Unit activation function (see also torch.nn.GELU).
+
     GELU(x) = x * Phi(x), where Phi(x) is the cumulative distribution function of the standard normal distribution.
     GELU is a smooth, non-linear approximation of the ReLU function and is used in many modern LLMs. It does have
     a non-zero gradient for almost all negative values.
@@ -64,7 +65,7 @@ class FeedForward(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    """The transformer block architecture."""
+    """The transformer block architecture (see also torch.nn.Transformer)."""
 
     def __init__(self, embed_dim: int, context_len: int, n_heads: int, dropout: float = 0.1, qkv_bias: bool = False):
         super().__init__()

@@ -6,7 +6,7 @@ import torch.nn as nn
 torch.manual_seed(123)
 
 
-class SelfAttentionV1(nn.Module):
+class SelfAttention(nn.Module):
     """Scaled dot-product self-attention with trainable weights."""
 
     def __init__(self, input_dim: int, output_dim: int, qkv_bias: bool = False):
@@ -35,7 +35,10 @@ class SelfAttentionV1(nn.Module):
 
 
 class CausalAttention(nn.Module):
-    """Scaled dot-product self-attention with causal attention mask and dropout."""
+    """
+    Scaled dot-product self-attention with causal attention mask and dropout.
+    See also: torch.nn.functional.scaled_dot_product_attention.
+    """
 
     def __init__(self, input_dim: int, output_dim: int, context_len: int,
                  dropout: float = 0.2, qkv_bias: bool = False):
@@ -115,7 +118,7 @@ if __name__ == '__main__':
     ##################################################################################
 
     print("\nScaled dot-product self-attention")
-    self_attn = SelfAttentionV1(input_dim=3, output_dim=2)
+    self_attn = SelfAttention(input_dim=3, output_dim=2)
     context_vectors = self_attn(inputs)
     print(f"Context vectors shape: {context_vectors.shape}")
     print(f"Context vectors: {context_vectors}")
