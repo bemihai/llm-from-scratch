@@ -4,11 +4,19 @@ from torch import nn
 from torch.nn.functional import cross_entropy
 from torch.utils.data import DataLoader
 
-# TODO: refactor this module
 
+def ds_accuracy(data: DataLoader, model: nn.Module, device: str = "cpu", num_batches: int | None = None):
+    """
+    Compute the binary classifier accuracy for a dataset.
 
-def dataset_accuracy(data: DataLoader, model: nn.Module, device: str, num_batches: int | None = None):
-    """Compute the binary classifier accuracy for a dataset."""
+    Args:
+        data: The dataset to evaluate.
+        model: The model to evaluate.
+        device: The device to run the model on.
+        num_batches: Optional, the number of batches to evaluate.
+
+    Returns the accuracy of the model on the dataset.
+    """
     model.eval()
     correct, num_items = 0, 0
     num_batches = min(num_batches, len(data)) if num_batches else len(data)
@@ -27,45 +35,42 @@ def dataset_accuracy(data: DataLoader, model: nn.Module, device: str, num_batche
     return correct/ num_items
 
 
-def batch_ce_loss_all(inputs: torch.Tensor, targets:torch.Tensor, model: nn.Module, device: str = "cpu"):
-    """Computes the cross-entropy loss on a single batch."""
-    inputs = inputs.to(device)
-    targets = targets.to(device)
-    logits = model(inputs)
-    loss = cross_entropy(logits.flatten(0, 1), targets.flatten())
+def ds_cross_entropy(
+        data: DataLoader, model: nn.Module, strategy: str = "all",
+        device: str = "cpu", num_batches: int | None = None
+):
+    """
+    Computes the average cross-entropy loss on a dataset.
 
-    return loss
+    Args:
+        data: The data loader.
+        model: The model to evaluate.
+        strategy: The strategy to use for computing the loss, i.e. which tokens to use in the computations.
+            Should be one of ["first", "last", "all"].
+        device: The device to run the model on.
+        num_batches: Optional, the number of batches to evaluate.
 
-
-def dataset_ce_loss_all(dl: DataLoader, model: nn.Module, device: str = "cpu", num_batches: int | None = None):
-    """Computes the average cross-entropy loss on a data loader."""
+    Returns the average cross-entropy loss on the dataset.
+    """
     total_loss = 0
-    num_batches = min(num_batches, len(dl)) if num_batches else len(dl)
-    for i, (inputs, targets) in enumerate(dl):
+    num_batches = min(num_batches, len(data)) if num_batches else len(data)
+    for i, (inputs, targets) in enumerate(data):
         if i > num_batches:
             break
-        loss = batch_ce_loss_all(inputs, targets, model, device)
+        logits = model(inputs.to(device))
+        match strategy:
+            case "first":
+                loss = cross_entropy(logits[:, 0, :], targets.to(device))
+            case "last":
+                loss = cross_entropy(logits[:, -1, :], targets.to(device))
+            case "all":
+                loss = cross_entropy(logits.flatten(0, 1), targets.to(device).flatten())
+            case _:
+                raise ValueError(f"Invalid strategy: {strategy}")
         total_loss += loss.item()
 
-    return total_loss / len(dl)
+    return total_loss / num_batches
 
 
-def batch_ce_loss_last(inputs, labels, model, device):
-    """Computes the batch cross-entropy loss of the last output tokens."""
-    inputs = inputs.to(device)
-    labels = labels.to(device)
-    logits = model(inputs)[:, -1, :]
-    return cross_entropy(logits, labels)
 
 
-def dataset_ce_loss_last(data, model, device, num_batches: int | None = None):
-    """Computes the average dataset cross-entropy loss of the last output tokens."""
-    loss = 0
-    num_batches = min(num_batches, len(data)) if num_batches else len(data)
-    for batch_idx, (inputs, labels) in enumerate(data):
-        if batch_idx == num_batches:
-            break
-        b_loss = batch_ce_loss_last(inputs, labels, model, device)
-        loss += b_loss
-
-    return loss / num_batches

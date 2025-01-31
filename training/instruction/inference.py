@@ -7,7 +7,7 @@ import torch
 from tqdm import tqdm
 
 from src.layers import GPTConfig, GPTModel
-from src.data.instruction_dataset import format_input
+from src.data import format_input
 from src.utils.api import query_ollama
 from src.utils.generate import get_next_tokens
 

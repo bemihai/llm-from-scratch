@@ -4,11 +4,12 @@ import pandas as pd
 import tiktoken
 import torch
 from torch import nn
+from torch.nn.functional import cross_entropy
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from torchsummary import summary
 
-from src.utils.metrics import batch_ce_loss_last, dataset_ce_loss_last, dataset_accuracy
+from src.utils.metrics import ds_cross_entropy, ds_accuracy
 from src.layers import GPTConfig, GPTClassifier, replace_linear_with_lora
 from src.utils.api import load_weights_into_gpt, download_and_load_gpt2
 from src.data import SpamDataset, balanced_dataset
@@ -26,20 +27,26 @@ def train_model(model: nn.Module, train_dl: DataLoader, val_dl: DataLoader, opti
         model.train()
 
         for inputs, labels in train_dl:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+
             optimizer.zero_grad()
             global_step += 1
 
-            loss = batch_ce_loss_last(inputs, labels, model, device)
+            # compute the cross-entropy only on the last token
+            logits = model(inputs)[:, -1, :]
+            loss = cross_entropy(logits, labels)
+
             loss.backward()
             optimizer.step()
             data_count += inputs.shape[0]
 
             if global_step % eval_freq == 0:
                 with torch.no_grad():
-                    train_loss = dataset_ce_loss_last(train_dl, model, device, num_batches=eval_iter)
-                    val_loss = dataset_ce_loss_last(val_dl, model, device, num_batches=eval_iter)
-                    train_acc = dataset_accuracy(train_dl, model, device, num_batches=eval_iter)
-                    val_acc = dataset_accuracy(val_dl, model, device, num_batches=eval_iter)
+                    train_loss = ds_cross_entropy(train_dl, model, "last", device, num_batches=eval_iter)
+                    val_loss = ds_cross_entropy(val_dl, model, "last", device, num_batches=eval_iter)
+                    train_acc = ds_accuracy(train_dl, model, device, num_batches=eval_iter)
+                    val_acc = ds_accuracy(val_dl, model, device, num_batches=eval_iter)
                     print(f"Epoch {epoch}, Step {global_step}, "
                           f"Train loss: {train_loss:.2f}, Val loss: {val_loss:.2f}, "
                           f"Train acc: {train_acc * 100:.2f}%, Val acc: {val_acc * 100:.2f}%")
@@ -157,9 +164,9 @@ if __name__ == "__main__":
     )
 
     # compute the training, validation, and test accuracies
-    train_accuracy = dataset_accuracy(train_dl, ft_model, device)
-    val_accuracy = dataset_accuracy(val_dl, ft_model, device)
-    test_accuracy = dataset_accuracy(test_dl, ft_model, device)
+    train_accuracy = ds_accuracy(train_dl, ft_model, device)
+    val_accuracy = ds_accuracy(val_dl, ft_model, device)
+    test_accuracy = ds_accuracy(test_dl, ft_model, device)
     print(f"Training accuracy: {train_accuracy * 100:.2f}%")
     print(f"Validation accuracy: {val_accuracy * 100:.2f}%")
     print(f"Test accuracy: {test_accuracy * 100:.2f}%")

@@ -4,6 +4,7 @@ import math
 import tiktoken
 import torch
 from torch import nn
+from torch.nn.functional import cross_entropy
 from torch.nn.utils import clip_grad_norm_
 from torch.optim import Optimizer, AdamW
 from torch.utils.data import DataLoader
@@ -12,7 +13,7 @@ from src.data import GPTDataset
 from src.layers import GPTConfig, GPTModel
 from src.utils import plot_losses
 from src.utils.generate import get_next_tokens
-from src.utils.metrics import batch_ce_loss_all, dataset_ce_loss_all
+from src.utils.metrics import ds_cross_entropy
 
 torch.manual_seed(123)
 
@@ -34,6 +35,9 @@ def train_model(model: nn.Module, train_dl: DataLoader, val_dl: DataLoader, opti
         model.to(device).train()
         # iterate over the training data
         for inputs, targets in train_dl:
+            inputs = inputs.to(device)
+            targets = targets.to(device)
+
             # reset the gradients and update the lr
             optimizer.zero_grad()
             global_step += 1
@@ -47,8 +51,10 @@ def train_model(model: nn.Module, train_dl: DataLoader, val_dl: DataLoader, opti
             for param_group in optimizer.param_groups:
                 param_group["lr"] = lr
 
-            # compute the loss of the current batch
-            loss = batch_ce_loss_all(inputs, targets, model, device)
+            # compute the cross-entropy loss of the current batch
+            logits = model(inputs)
+            loss = cross_entropy(logits.flatten(0, 1), targets.flatten())
+
             # compute the loss gradients
             loss.backward()
             # apply gradient clipping after warmup to avoid exploding gradients
@@ -78,8 +84,8 @@ def evaluate_model(model: nn.Module, train_dl: DataLoader, val_dl:DataLoader, de
     """Evaluate the model on the training and validation sets."""
     model.eval()
     with torch.no_grad():
-        train_loss = dataset_ce_loss_all(train_dl, model, device)
-        val_loss = dataset_ce_loss_all(val_dl, model, device)
+        train_loss = ds_cross_entropy(train_dl, model, device)
+        val_loss = ds_cross_entropy(val_dl, model, device)
 
     model.train()
     return train_loss, val_loss
@@ -144,8 +150,8 @@ if __name__ == "__main__":
 
     # compute the initial training and validation losses
     with torch.no_grad():
-        train_loss = dataset_ce_loss_all(train_dl, model, device)
-        val_loss = dataset_ce_loss_all(val_dl, model, device)
+        train_loss = ds_cross_entropy(train_dl, model, device)
+        val_loss = ds_cross_entropy(val_dl, model, device)
 
     print(f"Initial training loss: {train_loss:.4f}")
     print(f"Initial validation loss: {val_loss:.4f}")
