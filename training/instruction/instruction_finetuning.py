@@ -13,7 +13,7 @@ from src.utils.api import download_and_load_gpt2, load_weights_into_gpt
 from src.data import collate_fn, InstructionDataset, format_input
 from src.utils.metrics import ds_cross_entropy
 from training.foundation.train_gpt2 import train_model
-from src.utils import plot_losses
+from src.utils import plot_metrics
 
 torch.manual_seed(123)
 
@@ -100,7 +100,7 @@ if __name__ == "__main__":
 
     # plot the training and validation losses
     epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
-    plot_losses(epochs_tensor, tokens_seen, train_losses, val_losses)
+    plot_metrics(epochs_tensor, tokens_seen, train_losses, val_losses)
 
     # save the trained model to disk
     torch.save(model.state_dict(), "../../pretrained_models/instruction_gpt_355M.pth")

@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 
 from src.data import GPTDataset
 from src.layers import GPTConfig, GPTModel
-from src.utils import plot_losses
+from src.utils import plot_metrics
 from src.utils.generate import get_next_tokens
 from src.utils.metrics import ds_cross_entropy
 
@@ -184,8 +184,7 @@ if __name__ == "__main__":
     )
 
     # plot the training and validation losses
-    epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
-    plot_losses(epochs_tensor, tokens_seen, train_losses, val_losses)
+    plot_metrics(num_epochs, train_losses, val_losses, "Cross-Entropy Loss")
 
     # save the trained model to disk
     torch.save(model.state_dict(), "../../pretrained_models/gpt_small.pth")

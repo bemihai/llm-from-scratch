@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 
 def ds_accuracy(data: DataLoader, model: nn.Module, device: str = "cpu", num_batches: int | None = None):
     """
-    Compute the binary classifier accuracy for a dataset.
+    Computes the binary classifier accuracy for a dataset.
 
     Args:
         data: The dataset to evaluate.
