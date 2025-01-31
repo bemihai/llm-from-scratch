@@ -3,6 +3,7 @@ import math
 
 import tiktoken
 import torch
+from omegaconf import OmegaConf
 from torch import nn
 from torch.nn.functional import cross_entropy
 from torch.nn.utils import clip_grad_norm_
@@ -10,8 +11,8 @@ from torch.optim import Optimizer, AdamW
 from torch.utils.data import DataLoader
 
 from src.data import GPTDataset
-from src.layers import GPTConfig, GPTModel
-from src.utils import plot_metrics
+from src.layers import GPTModel
+from src.utils import plot_metrics, get_project_root
 from src.utils.generate import get_next_tokens
 from src.utils.metrics import ds_cross_entropy
 
@@ -108,64 +109,61 @@ def generate_sample(model: nn.Module, tokenizer: tiktoken.Encoding,
 
 if __name__ == "__main__":
 
+    # load the GPT-2 small config
+    cfg = OmegaConf.load(get_project_root() / "src/config/gpt2_small.yaml")
+    cfg.model.params.context_len = 256
+    cfg.model.params.qkv_bias = False
+
     tokenizer = tiktoken.get_encoding("gpt2")
-    gpt_cfg = GPTConfig()
-    gpt_cfg.context_len = 256
 
     with open("../../data/the-verdict.txt", "r") as f:
         raw_text = f.read()
 
     # split the data into training and validation sets
-    train_val_ratio = 0.9
-    train_size = int(len(raw_text) * train_val_ratio)
+    train_size = int(len(raw_text) * cfg.data.train_val_ratio)
     train_data = raw_text[:train_size]
     val_data = raw_text[train_size:]
 
     # training data loader
     train_dl = DataLoader(
         dataset=GPTDataset(
-            text=train_data, tokenizer=tokenizer, max_length=gpt_cfg.context_len, stride=gpt_cfg.context_len
+            text=train_data, tokenizer=tokenizer,
+            max_length=cfg.model.params.context_len, stride=cfg.model.params.context_len,
         ),
-        batch_size=2,
-        shuffle=True,
-        drop_last=True,
-        num_workers=0,
+        **cfg.data.train_dl,
     )
 
     # validation data loader
     val_dl = DataLoader(
         dataset=GPTDataset(
-            text=val_data, tokenizer=tokenizer, max_length=gpt_cfg.context_len, stride=gpt_cfg.context_len
+            text=val_data, tokenizer=tokenizer,
+            max_length=cfg.model.params.context_len, stride=cfg.model.params.context_len
         ),
-        batch_size=2,
-        shuffle=False,
-        drop_last=False,
-        num_workers=0,
+        **cfg.data.val_dl,
     )
 
     # instantiate the GPT-2 model
-    model = GPTModel(gpt_cfg)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model.to(device)
+    model = GPTModel(cfg.model.params)
+    model.to(cfg.device)
 
     # compute the initial training and validation losses
     with torch.no_grad():
-        train_loss = ds_cross_entropy(train_dl, model, device)
-        val_loss = ds_cross_entropy(val_dl, model, device)
+        train_loss = ds_cross_entropy(train_dl, model)
+        val_loss = ds_cross_entropy(val_dl, model)
 
     print(f"Initial training loss: {train_loss:.4f}")
     print(f"Initial validation loss: {val_loss:.4f}")
 
     # set training parameters
-    num_epochs = 10
+    # TODO: define scheduler
     initial_lr = 0.004
     min_lr = 0.0004
-    total_steps = len(train_dl) * num_epochs
+    total_steps = len(train_dl) * cfg.train.max_epochs
     warmup_steps = int(0.05 * total_steps)  # 20% steps for learning rate warmup
 
     # instantiate the optimizer
-    # AdamW is a variant of Adam that improves the weight decay approach (better regularization)
-    optimizer = AdamW(model.parameters(), lr=0.0004, weight_decay=0.1)
+    _optim = getattr(torch.optim, cfg.train.optimizer.type)
+    optimizer = _optim(model.parameters(), **cfg.train.optimizer.params)
 
     # train the model
     train_losses, val_losses, tokens_seen, lrs = train_model(
@@ -173,18 +171,18 @@ if __name__ == "__main__":
         train_dl=train_dl,
         val_dl=val_dl,
         optimizer=optimizer,
-        num_epochs=num_epochs,
-        eval_freq=5,
+        num_epochs=cfg.train.max_epochs,
+        eval_freq=cfg.train.log_every_n_steps,
         initial_lr=initial_lr,
         min_lr=min_lr,
         warmup_steps=warmup_steps,
         start_context="Every effort moves you",
         tokenizer=tokenizer,
-        device=device,
+        device=cfg.device,
     )
 
     # plot the training and validation losses
-    plot_metrics(num_epochs, train_losses, val_losses, "Cross-Entropy Loss")
+    plot_metrics(cfg.train.max_epochs, train_losses, val_losses, "Cross-Entropy Loss")
 
     # save the trained model to disk
     torch.save(model.state_dict(), "../../pretrained_models/gpt_small.pth")

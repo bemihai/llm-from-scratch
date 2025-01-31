@@ -5,18 +5,18 @@ from torch.nn.functional import cross_entropy
 from torch.utils.data import DataLoader
 
 
-def ds_accuracy(data: DataLoader, model: nn.Module, device: str = "cpu", num_batches: int | None = None):
+def ds_accuracy(data: DataLoader, model: nn.Module, num_batches: int | None = None):
     """
     Computes the binary classifier accuracy for a dataset.
 
     Args:
         data: The dataset to evaluate.
         model: The model to evaluate.
-        device: The device to run the model on.
         num_batches: Optional, the number of batches to evaluate.
 
     Returns the accuracy of the model on the dataset.
     """
+    device = next(model.parameters()).device
     model.eval()
     correct, num_items = 0, 0
     num_batches = min(num_batches, len(data)) if num_batches else len(data)
@@ -35,10 +35,7 @@ def ds_accuracy(data: DataLoader, model: nn.Module, device: str = "cpu", num_bat
     return correct/ num_items
 
 
-def ds_cross_entropy(
-        data: DataLoader, model: nn.Module, strategy: str = "all",
-        device: str = "cpu", num_batches: int | None = None
-):
+def ds_cross_entropy(data: DataLoader, model: nn.Module, strategy: str = "all", num_batches: int | None = None):
     """
     Computes the average cross-entropy loss on a dataset.
 
@@ -47,17 +44,18 @@ def ds_cross_entropy(
         model: The model to evaluate.
         strategy: The strategy to use for computing the loss, i.e. which tokens to use in the computations.
             Should be one of ["first", "last", "all"].
-        device: The device to run the model on.
         num_batches: Optional, the number of batches to evaluate.
 
     Returns the average cross-entropy loss on the dataset.
     """
+    device = next(model.parameters()).device
     total_loss = 0
     num_batches = min(num_batches, len(data)) if num_batches else len(data)
     for i, (inputs, targets) in enumerate(data):
         if i > num_batches:
             break
-        logits = model(inputs.to(device))
+        inputs = inputs.to(device)
+        logits = model(inputs)
         match strategy:
             case "first":
                 loss = cross_entropy(logits[:, 0, :], targets.to(device))

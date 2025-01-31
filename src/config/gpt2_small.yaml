@@ -1,0 +1,62 @@
+device: mps
+model:
+  name: "GPT-2 small (124M)"
+  type: GPTModel
+  params:
+    vocab_size: 50_257          # vocabulary size
+    context_len: 1024           # the max number of input tokens to process
+    embed_dim: 768              # embedding size of the input tokens
+    n_heads: 12                 # number of attention heads
+    n_layers: 12                # number of transformer layers
+    dropout: 0.1                # dropout rate
+    qkv_bias: True              # include bias in qkv projection layers
+
+data:
+  train_val_ratio: 0.9
+  train_dl:
+    batch_size: 4
+    num_workers: 0
+    shuffle: True
+    drop_last: True
+  val_dl:
+    batch_size: 4
+    num_workers: 0
+    shuffle: False
+    drop_last: False
+
+train:
+  max_epochs: 5
+  log_every_n_steps: 5
+  enable_model_summary: False
+  gradient_clip_val: 1.0
+  criterion:
+    type: cross_entropy
+    params:
+      ignore_index: -100
+  optimizer:
+      type: AdamW
+      params:
+        lr: 5e-4
+        weight_decay: 0.1
+  lr_scheduler:
+    type: linear
+    params:
+      warmup_steps: 0
+      total_steps: 10_000
+  metrics:
+    - type: Perplexity
+      name: ppl
+  callbacks:
+    - type: ModelCheckpoint
+      params:
+        monitor: val_loss
+        mode: min
+        save_top_k: 1
+        dirpath: "checkpoints/"
+        filename: "model-{epoch:02d}-{val_loss:.2f}"
+    - type: EarlyStopping
+      params:
+        monitor: val_loss
+        mode: min
+        patience: 3
+        verbose: True

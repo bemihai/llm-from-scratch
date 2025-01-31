@@ -1,5 +1,6 @@
 """Implementation of GPT-2 model."""
 import torch
+from omegaconf import DictConfig
 from torch import nn
 from dataclasses import dataclass
 
@@ -23,7 +24,7 @@ class GPTConfig:
 class GPTModel(nn.Module):
     """The (modern) GPT-2 model architecture."""
 
-    def __init__(self, cfg: GPTConfig):
+    def __init__(self, cfg: DictConfig):
         super().__init__()
         self.config = cfg
         # input tokens embedding layer
