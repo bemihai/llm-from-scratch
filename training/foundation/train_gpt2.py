@@ -3,11 +3,12 @@ import math
 
 import tiktoken
 import torch
-from omegaconf import OmegaConf
+from omegaconf import OmegaConf, DictConfig
 from torch import nn
 from torch.nn.functional import cross_entropy
 from torch.nn.utils import clip_grad_norm_
-from torch.optim import Optimizer, AdamW
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler as Scheduler
 from torch.utils.data import DataLoader
 
 from src.data import GPTDataset
@@ -19,17 +20,26 @@ from src.utils.metrics import ds_cross_entropy
 torch.manual_seed(123)
 
 
-def train_model(model: nn.Module, train_dl: DataLoader, val_dl: DataLoader, optimizer: Optimizer,
-                num_epochs: int, eval_freq: int, initial_lr: float, min_lr: float, warmup_steps: int,
-                start_context: str, tokenizer: tiktoken.Encoding, device: str = "cpu"):
+def build_optimizer_and_schedule(train_cfg: DictConfig, **kwargs):
+    """Build the optimizer and scheduler based on the training config."""
+    _optim = getattr(torch.optim, train_cfg.optimizer.type)
+    optimizer = _optim(model.parameters(), **train_cfg.optimizer.params)
+    if "scheduler" in train_cfg and train_cfg.scheduler is not None:
+        _scheduler = getattr(torch.optim.lr_scheduler, train_cfg.scheduler.type)
+        scheduler = _scheduler(optimizer, **train_cfg.scheduler.params, **kwargs)
+        return optimizer, scheduler
+
+    return optimizer, None
+
+
+
+def train_model(
+        model: nn.Module, train_dl: DataLoader, val_dl: DataLoader, optimizer: Optimizer, scheduler: Scheduler | None,
+        num_epochs: int, eval_freq: int, start_context: str, tokenizer: tiktoken.Encoding, device: str = "cpu"
+):
     """The training loop of the GPT-2 model."""
     train_losses, val_losses, track_tokens_seen, track_lr = [], [], [], []
     tokens_seen, global_step = 0, -1
-
-    # lr increment per step during warmup
-    total_steps = len(train_dl) * num_epochs
-    peak_lr = optimizer.param_groups[0]["lr"]
-    lr_increment = (peak_lr - initial_lr) / warmup_steps if warmup_steps > 0 else 0
 
     for epoch in range(num_epochs):
         # set model to training mode
@@ -42,15 +52,6 @@ def train_model(model: nn.Module, train_dl: DataLoader, val_dl: DataLoader, opti
             # reset the gradients and update the lr
             optimizer.zero_grad()
             global_step += 1
-            # linear warmup for lr followed by cosine decay
-            if global_step < warmup_steps:
-                lr = initial_lr + lr_increment * global_step
-            else:
-                progress = (global_step - warmup_steps) / (total_steps - warmup_steps)
-                lr = min_lr + 0.5 * (peak_lr - min_lr) * (1 + math.cos(math.pi * progress))
-            track_lr.append(lr)
-            for param_group in optimizer.param_groups:
-                param_group["lr"] = lr
 
             # compute the cross-entropy loss of the current batch
             logits = model(inputs)
@@ -58,11 +59,20 @@ def train_model(model: nn.Module, train_dl: DataLoader, val_dl: DataLoader, opti
 
             # compute the loss gradients
             loss.backward()
+
             # apply gradient clipping after warmup to avoid exploding gradients
-            if global_step > warmup_steps:
-                clip_grad_norm_(model.parameters(), 1.0)
+            # if global_step > 50:
+            #     clip_grad_norm_(model.parameters(), 1.0)
+
             # update model weights
             optimizer.step()
+            # TODO: scheduler.step() is not working
+            if scheduler:
+                scheduler.step()
+
+            lr = scheduler.get_last_lr() if scheduler else optimizer.param_groups[0]["lr"]
+            track_lr.append(lr)
+
             tokens_seen += inputs.numel()
 
             # evaluate the model on the training and validation sets
@@ -74,9 +84,9 @@ def train_model(model: nn.Module, train_dl: DataLoader, val_dl: DataLoader, opti
                 print(f"Epoch {epoch+1}, Step {global_step}: "
                       f"Train Loss = {train_loss:.4f}, Val Loss = {val_loss:.4f}, LR = {lr:.4f}")
 
-        # generate a sample from the model for visual inspection
-        context_size = model.config.context_len
-        generate_sample(model, tokenizer, start_context, context_size, device)
+                # generate a sample from the model for visual inspection
+                context_size = model.config.context_len
+                generate_sample(model, tokenizer, start_context, context_size, device)
 
     return train_losses, val_losses, track_tokens_seen, track_lr
 
@@ -85,8 +95,8 @@ def evaluate_model(model: nn.Module, train_dl: DataLoader, val_dl:DataLoader, de
     """Evaluate the model on the training and validation sets."""
     model.eval()
     with torch.no_grad():
-        train_loss = ds_cross_entropy(train_dl, model, device)
-        val_loss = ds_cross_entropy(val_dl, model, device)
+        train_loss = ds_cross_entropy(train_dl, model)
+        val_loss = ds_cross_entropy(val_dl, model)
 
     model.train()
     return train_loss, val_loss
@@ -154,16 +164,11 @@ if __name__ == "__main__":
     print(f"Initial training loss: {train_loss:.4f}")
     print(f"Initial validation loss: {val_loss:.4f}")
 
-    # set training parameters
-    # TODO: define scheduler
-    initial_lr = 0.004
-    min_lr = 0.0004
-    total_steps = len(train_dl) * cfg.train.max_epochs
-    warmup_steps = int(0.05 * total_steps)  # 20% steps for learning rate warmup
-
-    # instantiate the optimizer
-    _optim = getattr(torch.optim, cfg.train.optimizer.type)
-    optimizer = _optim(model.parameters(), **cfg.train.optimizer.params)
+    # instantiate the optimizer and lr scheduler
+    num_training_steps = len(train_dl) * cfg.train.max_epochs
+    optimizer, scheduler = build_optimizer_and_schedule(
+        cfg.train, warmup_steps = 0.2 * num_training_steps, total_steps=num_training_steps
+    )
 
     # train the model
     train_losses, val_losses, tokens_seen, lrs = train_model(
@@ -171,11 +176,9 @@ if __name__ == "__main__":
         train_dl=train_dl,
         val_dl=val_dl,
         optimizer=optimizer,
+        scheduler=scheduler,
         num_epochs=cfg.train.max_epochs,
         eval_freq=cfg.train.log_every_n_steps,
-        initial_lr=initial_lr,
-        min_lr=min_lr,
-        warmup_steps=warmup_steps,
         start_context="Every effort moves you",
         tokenizer=tokenizer,
         device=cfg.device,

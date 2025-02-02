@@ -9,24 +9,24 @@ model:
     n_heads: 12                 # number of attention heads
     n_layers: 12                # number of transformer layers
     dropout: 0.1                # dropout rate
-    qkv_bias: True              # include bias in qkv projection layers
+    qkv_bias: False              # include bias in qkv projection layers
 
 data:
   train_val_ratio: 0.9
   train_dl:
-    batch_size: 4
+    batch_size: 2
     num_workers: 0
     shuffle: True
     drop_last: True
   val_dl:
-    batch_size: 4
+    batch_size: 2
     num_workers: 0
     shuffle: False
     drop_last: False
 
 train:
-  max_epochs: 5
-  log_every_n_steps: 5
+  max_epochs: 10
+  log_every_n_steps: 10
   enable_model_summary: False
   gradient_clip_val: 1.0
   criterion:
@@ -36,13 +36,13 @@ train:
   optimizer:
       type: AdamW
       params:
-        lr: 5e-4
+        lr: 0.001
         weight_decay: 0.1
   lr_scheduler:
-    type: linear
+    type: WarmupCosineScheduler
     params:
-      warmup_steps: 0
-      total_steps: 10_000
+      min_lr: 0.0
+      initial_lr: 0.0
   metrics:
     - type: Perplexity
       name: ppl
