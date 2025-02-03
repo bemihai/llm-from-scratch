@@ -1,4 +1,5 @@
 """Training loop of the GPT-2 model."""
+import importlib
 import math
 
 import tiktoken
@@ -24,9 +25,13 @@ def build_optimizer_and_schedule(train_cfg: DictConfig, **kwargs):
     """Build the optimizer and scheduler based on the training config."""
     _optim = getattr(torch.optim, train_cfg.optimizer.type)
     optimizer = _optim(model.parameters(), **train_cfg.optimizer.params)
-    if "scheduler" in train_cfg and train_cfg.scheduler is not None:
-        _scheduler = getattr(torch.optim.lr_scheduler, train_cfg.scheduler.type)
-        scheduler = _scheduler(optimizer, **train_cfg.scheduler.params, **kwargs)
+    if "lr_scheduler" in train_cfg and train_cfg.lr_scheduler is not None:
+        try:
+            _scheduler = getattr(torch.optim.lr_scheduler, train_cfg.lr_scheduler.type)
+        except AttributeError:
+            schedulers_module = importlib.import_module("src.utils.scheduler")
+            _scheduler = getattr(schedulers_module, train_cfg.lr_scheduler.type)
+        scheduler = _scheduler(optimizer, **train_cfg.lr_scheduler.params, **kwargs)
         return optimizer, scheduler
 
     return optimizer, None
@@ -61,16 +66,15 @@ def train_model(
             loss.backward()
 
             # apply gradient clipping after warmup to avoid exploding gradients
-            # if global_step > 50:
-            #     clip_grad_norm_(model.parameters(), 1.0)
+            if epoch > 5:
+                clip_grad_norm_(model.parameters(), 1.0)
 
             # update model weights
             optimizer.step()
-            # TODO: scheduler.step() is not working
             if scheduler:
                 scheduler.step()
 
-            lr = scheduler.get_last_lr() if scheduler else optimizer.param_groups[0]["lr"]
+            lr = optimizer.param_groups[0]["lr"]
             track_lr.append(lr)
 
             tokens_seen += inputs.numel()
@@ -82,7 +86,7 @@ def train_model(
                 val_losses.append(val_loss)
                 track_tokens_seen.append(tokens_seen)
                 print(f"Epoch {epoch+1}, Step {global_step}: "
-                      f"Train Loss = {train_loss:.4f}, Val Loss = {val_loss:.4f}, LR = {lr:.4f}")
+                      f"Train Loss = {train_loss:.4f}, Val Loss = {val_loss:.4f}, LR = {lr:.6f}")
 
                 # generate a sample from the model for visual inspection
                 context_size = model.config.context_len
@@ -91,7 +95,7 @@ def train_model(
     return train_losses, val_losses, track_tokens_seen, track_lr
 
 
-def evaluate_model(model: nn.Module, train_dl: DataLoader, val_dl:DataLoader, device: str = "cpu"):
+def evaluate_model(model: nn.Module, train_dl: DataLoader, val_dl:DataLoader):
     """Evaluate the model on the training and validation sets."""
     model.eval()
     with torch.no_grad():
@@ -118,7 +122,6 @@ def generate_sample(model: nn.Module, tokenizer: tiktoken.Encoding,
 
 
 if __name__ == "__main__":
-
     # load the GPT-2 small config
     cfg = OmegaConf.load(get_project_root() / "src/config/gpt2_small.yaml")
     cfg.model.params.context_len = 256
